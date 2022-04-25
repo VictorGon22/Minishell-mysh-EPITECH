@@ -1,85 +1,72 @@
 name: chocolatine
 
 env:
-  MIRROR_URL: git@github.com:VictorGon22/Minishell-mysh-EPITECH.git
-  EXECUTABLE: mysh
-
-on:
-  push:
-    branches-ignore:
-      - ga-ignore-*
-  pull_request:
-    branches-ignore:
-      - ga-ignore-*
-
+  MIRROR_URL: "git@github.com:VictorGon22/Minishell-mysh-EPITECH.git"
+  EXECUTABLES: "mysh"
 jobs:
-  check_repository_clearness:
+
+  check_repository_cleanliness:
+    name: "check_repository_cleanliness"
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Check repository clearness
+      - id: clean
         run: |
-            if find ./ \( -name "#*#" -o -name "*~" -o -name "*.o" -o -name "*.a" -o -name "*.so" -o -name "*.gcno" -o -name "*.gcda" -o -name "*.gcov" -o -iname "*pain_au_chocolat*" -o -path "*/tmp/*" -type f \) -exec false {} +
-            then
-              exit 0
-            else
-              path=$(find ./ \( -name "#*#" -o -name "*~" -o -name "*.o" -o -name "*.a" -o -name "*.so" -o -name "*.gcno" -o -name "*.gcda" -o -name "*.gcov" -o -iname "*pain_au_chocolat*" -o -path "*/tmp/*" -type f \))
-              for i in $path; do
-                 echo "::error file=$i,line=1,endLine=1,title=Unwanted file detected::$i"
-              done
-              exit 1
-            fi
-            exit 0
-  check_program_compilation:
-    permissions:
-      contents: read
-    needs: check_repository_clearness
-    runs-on: ubuntu-latest
-    container: epitechcontent/epitest-docker
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Check program compilation
-        run: |
-          if find ./ \("Makefile")
+          UNWANTED_FILES=$(find . -type f -not -path "./git/*" -wholename "*/tmp*" -or -name "*.o" -or -name "*.a" -or -name "*.gcno" -or -name "*.gcda" -or -name "*gcov" -or -name "*pain_au_chocolat*")
+          for FILE
+           in $UNWANTED_FILES; do
+            echo "::error file=${FILE#./}, title=Unwanted file detected::${FILE#./}"
+          done
+          if [[ -z "$UNWATED_FILES" ]]
           then
-            timeout 2m make
-          else
-            exit 1
-          fi  
-  run_tests:
-    permissions:
-      contents: read
-    needs: check_program_compilation
-    runs-on: ubuntu-latest
-    container: epitechcontent/epitest-docker
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Check program compilation
-        run: |
-          if find ./ \("Makefile")
-          then
-            timeout 2m make tests_run
-            exit 0
+            echo empty list
           else
             exit 1
           fi
-  push_to_mirror:
-    needs: run_tests
-    permissions:
-      contents: read
+  check_program_compilation:
+    needs: [ check_repository_cleanliness ]
+    name: "check_program_compilation"
     runs-on: ubuntu-latest
+    container:
+      image: epitechcontent/epitest-docker:latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - id: check_if_compil
+        run: make
+        timeout-minutes: 2
+      - run: |
+              make clean
+      - run: |
+            if [ -f $EXECUTABLES ]
+            then
+                do
+            else
+                done
+            fi
+  run_tests:
+    needs: [ check_program_compilation ]
+    name: "run_tests"
+    runs-on: ubuntu-latest
+    container:
+      image: epitechcontent/epitest-docker:latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - id: tests_run
+        run: make tests_run
+        timeout-minutes: 2
+
+  push_to_mirror:
+    needs: [ check_program_compilation ]
+    name: "Push to mirror"
+    runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
       - uses: pixta-dev/repository-mirroring-action@v1
         with:
           target_repo_url:
